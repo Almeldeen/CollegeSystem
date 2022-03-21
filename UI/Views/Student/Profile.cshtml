@@ -1,0 +1,467 @@
+﻿@using DataModel;
+@{
+    SoadEntities db = new SoadEntities();
+    ViewBag.Title = "profile";
+    Layout = "~/Views/Shared/ProfileLayout.cshtml";
+    var data = Session["UserData"];
+    int Id = 0;
+    int check = 0;
+    if (data == null)
+    {
+        Response.Redirect("/Student/SignUp");
+    }
+    else
+    {
+        Id = (int)data;
+
+        var studentsub = db.StudentSubjects.Where(x => x.student_Id == Id && x.status == (int)BLL.StudentStatus.regist).ToList();
+        if (studentsub.Count > 0)
+        {
+            check = 1;
+        }
+    }
+}
+<input type="hidden" id="hdnStudid" value="@Id" />
+<input type="hidden" id="hdnValid" value="@check" />
+<div class="row">
+    <div class="col-sm-4">
+        <div class="heading">
+            <h3 id="dropright"><span id="clickright" style="color:black" class="sep ion-android-arrow-dropright px-2"></span><b id="txt" style="color: #5bc0de">Subjects</b></h3>
+            <h3 id="dropdown"><span id="clickdown" style="color:#bbbfc1" class="sep ion-android-arrow-dropdown px-2"></span><b id="txt" style="color: #5bc0de">Subjects</b></h3>
+
+        </div>
+    </div><!-- col-sm-4 -->
+</div><!-- row -->
+<div class="container">
+    <br />
+    <table id="table1" class="table table-striped">
+        <thead>
+            <tr>
+                <th>
+                    Subject
+                </th>
+                <th>
+                    Professor
+                </th>
+                <th>
+                    Credit Hours
+                </th>
+                <th>
+                    Day
+                </th>
+                <th>
+                    Time
+                </th>
+                <th>Register</th>
+            </tr>
+        </thead>
+        <tbody class="tbody1"></tbody>
+    </table>
+    <div id="pagination"></div>
+    <br />
+    <br />
+    <div id="section">
+        <p style="text-align: center;">
+            Credit Hours <span class="dot" style="border-color: black;width: 42px;height:42px; border-radius: 50%;display: inline-block;background-color: lightgrey;text-align:center;margin-left: 10px;line-height: 40px;color:white" id="danger"><b>0</b></span>
+        </p>
+        <br />
+        <br />
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>
+                        Subject
+                    </th>
+                    <th>
+                        Professor
+                    </th>
+                    <th>
+                        Credit Hours
+                    </th>
+                    <th>
+                        Day
+                    </th>
+                    <th>
+                        Time
+                    </th>
+                    <th>
+                        Cancel
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="tbody2" id="tbody2"></tbody>
+        </table>
+        <br />
+        <button type="button" class="btn btn-info" id="btnok" style="pointer-events:none">Regist</button>
+    </div>
+
+
+</div>
+
+<script>
+    var sublist = new Array();
+
+    $(document).ready(function () {
+        $('#section').hide();
+        //$('#table1').hide();
+        //$('#dropdown').hide();
+        //$('#clickright').click(function () {
+        //    $('#dropdown').show();
+        //    $('#dropright').hide();
+        //    $('#table1').show(1000);
+        //});
+        //$('#clickdown').click(function () {
+        //    $('#dropright').show();
+        //    $('#dropdown').hide();
+        //    $('#table1').hide(1000);
+        //});
+        if ($('#hdnValid').val() == 0) {
+            LoadSubjects();
+        } else {
+            LoadSubjects();
+            LoadSubjects2();
+        }
+
+
+        $('#btnok').click(function () {
+            //$.each(sublist, function (key, item) {
+            //    alert(item);
+            //});
+            var hdnID = $('#hdnStudid').val();
+
+            $.ajax({
+                url: '/Student/Save',
+                type: "POST",
+                data: {
+                    "subArray": sublist,
+                    'ID': hdnID,
+                },
+                dataType: "json",
+                async: false,
+                success: function (result) {
+                    if (result == "success") {
+                        swal(
+                            'successfully registered',
+                            '',
+                            'success'
+                        )
+                    }
+                    else {
+                        swal(
+                            'Register Again',
+                            '',
+                            'error'
+                        )
+
+                    }
+                }
+            });
+
+        })
+        $("#imageUpload").change(function () {
+            readURL(this);
+
+        });
+    });
+    var allhours = 0;
+    var allsub = [];
+    var addIds = new Array();
+    var cancelIds = new Array()
+    function button(allhours) {
+        if (allhours >= 12 && allhours <= 18) {
+            $('#btnok').css("pointer-events", "visible");
+        }
+        else {
+            $('#btnok').css("pointer-events", "none");
+        }
+
+    }
+    function readURL(input) {
+        var id = $('#hdnStudid').val();
+        var data = new FormData();
+        var files = $("#imageUpload").get(0).files;
+        if (files.length > 0) { data.append("HelpSectionImages", files[0]); }
+        else {
+            common.showNotification('warning', 'Please select file to upload.', 'top', 'right');
+            return false;
+        }
+        var extension = $("#imageUpload").val().split('.').pop().toUpperCase();
+        if (extension != "PNG" && extension != "JPG" && extension != "GIF" && extension != "JPEG") {
+            common.showNotification('warning', 'Imvalid image file format.', 'top', 'right');
+            return false;
+        }
+        $.ajax({
+            url: '/Student/SaveProfileImage?id=' + id, type: "POST", processData: false,
+            data: data, dataType: 'json',
+            contentType: false,
+            success: function (response) {
+                if (response != null || response != '')
+                    ViweImage(input)
+            },
+            error: function (er) { }
+
+        });
+        return false;
+    }
+    function ViweImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+
+            reader.onload = function (e) {
+                $('#imagePreview').attr('src', e.target.result);
+            }
+
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+    function LoadSubjects() {
+        var stdID = $('#hdnStudid').val();
+        $.ajax({
+            url: "/Student/LoadAllSubjects?id=" + stdID,
+            type: "GET",
+            data: {},
+            dataType: "json",
+            async: false,
+            success: function (result) {
+                $.each(result, function (key, item) {
+                    addIds.push(item.subjectId)
+                })
+                allsub = result;
+                $('#table1').dataTable({
+                    destroy: true,
+                    data: result,
+                    columns: [
+                        { 'data': 'subject1' },
+                        { 'data': 'ProfName' },
+                        { 'data': 'creditHours' },
+                        { 'data': 'day' },
+                        {
+                            'data': null,
+                            render: function (data, type, row) {
+                                return '<p id="time_' + data.subjectId + '">' + data.timeFrom.substring(0, 8) + ' - ' + data.timeTo.substring(0, 8) + '</p > ';
+                            }
+                        },
+                        {
+                            'data': null,
+                            render: function (data, type, row) {
+                                return '<a href="javascript:void(0);" onclick=SelectRow(' + data.subjectId + ',' + data.creditHours + '); return false;>' +
+                                    '<i class="fa fa-check-circle " style="font-size: x-large;color: green;"></i></a>';
+                            }
+                        },
+
+                    ],
+                    createdRow: function (row, data, dataIndex, cells) {
+                        $(row).addClass("tr_" + data.subjectId );
+                    },
+                })
+            }
+        });
+    }
+    function LoadSubjects2() {
+        var stdID = $('#hdnStudid').val();
+        $.ajax({
+            url: "/Student/LoadAllSubjects2?id=" + stdID,
+            type: "GET",
+            contentType: "application/json;charset=utf-8",
+            dataType: "json",
+            success: function (result) {
+                allsub = result;
+                var html = '';
+                $.each(result, function (key, item) {
+                    html += '<tr id="tr2_' + item.subjectId + '">';
+                    html += '<td id="sub">' + item.subject1 + '</td>';
+                    html += '<td id="subid">' + item.ProfName + '</td>';
+                    html += '<td id="hour">' + item.creditHours + '</td>';
+                    html += '<td id="day">' + item.day + '</td>';
+                    html += '<td id="time">' + item.timeFrom.substring(0, 8) + ' - ' + item.timeTo.substring(0, 8) + '</td>';
+                    html += '<td><a href="javascript:void(0);" onclick=DeleteRow(' + item.subjectId + ',' + item.creditHours + '); return false;>' +
+                        '<i class="fa fa-times-circle" style="font-size: x-large;color: red;"></i></a> </td> ';
+                    html += '</tr>';
+                    allhours += parseFloat(item.creditHours);
+                    button(allhours);
+                    $("#danger").text(allhours);
+                    color();
+                    sublist.push(item.subjectId);
+                });
+                $('.tbody2').html(html);
+                if (result != null) {
+                    $('#section').show();
+                }
+            }
+        });
+    }
+    function SelectRow(id, ch) {
+        var hours = allhours + ch;
+        if (hours <= 18) {
+
+            $('#section').show();
+            var day = $('#day_' + id).text();
+            var time = $('#time_' + id).text();
+            var start1 = time.substring(0, 5);
+            var end1 = time.substring(10, 16);
+            var check = true;
+            $('.tbody2').find('tr').each(function (i, el) {
+
+                var $tds = $(this).find('td'),
+                    tday = $tds.eq(3).text(),
+                    ttime = $tds.eq(4).text();
+                var start2 = ttime.substring(0, 5);
+                var end2 = ttime.substring(10, 16);
+                 
+                $.ajax({
+                    url: "/Student/VaildTime?start1=" + start1 + "&end1=" + end1 + "&start2=" + start2 + "&end2=" + end2 + "&day1=" + day + "&day2=" + tday,
+                    type: "GET",
+                    contentType: "application/json;charset=utf-8",
+                    dataType: "json",
+                    success: function (result) {
+                         
+                        if (result) {
+                            check = false;
+                        }
+                    }
+                });
+            });
+            if (check) {
+                debugger;
+                var index = $.inArray(id, addIds);
+                addIds.splice(index, 1);
+                var newdate = [];
+                $.each(allsub, function (key, item) {
+                    for (var i = 0; i < addIds.length; i++) {
+                        if (addIds[i] == item.subjectId) {
+                            newdate.push(item)
+                        }
+                    }
+                });
+                $('#table1').dataTable({
+                    destroy: true,
+                    data: newdate,
+                    columns: [
+                        { 'data': 'subject1' },
+                        { 'data': 'ProfName' },
+                        { 'data': 'creditHours' },
+                        { 'data': 'day' },
+                        {
+                            'data': null,
+                            render: function (data, type, row) {
+                                return '<td id="time_' + data.subjectId + '">' + data.timeFrom.substring(0, 8) + ' - ' + data.timeTo.substring(0, 8) + '</td > ';
+                            }
+                        },
+                        {
+                            'data': null,
+                            render: function (data, type, row) {
+                                return '<a href="javascript:void(0);" onclick=SelectRow(' + data.subjectId + ',' + data.creditHours + '); return false;>' +
+                                    '<i class="fa fa-check-circle " style="font-size: x-large;color: green;"></i></a>';
+                            }
+                        },
+
+                    ],
+                    createdRow: function (row, data, dataIndex, cells) {
+                        $(row).addClass("tr_" + data.subjectId );
+                    },
+                })
+                //$('#tr_' + id).remove();
+                sublist.push(id);
+                $.each(allsub, function (key, item) {
+                    if (item.subjectId == id) {
+                        var html = '';
+                        html += '<tr id="tr2_' + item.subjectId + '">';
+                        html += '<td id="sub">' + item.subject1 + '</td>';
+                        html += '<td id="subid">' + item.ProfName + '</td>';
+                        html += '<td id="hour">' + item.creditHours + '</td>';
+                        html += '<td id="day">' + item.day + '</td>';
+                        html += '<td id="time">' + item.timeFrom.substring(0, 8) + ' - ' + item.timeTo.substring(0, 8) + '</td>';
+                        html += '<td><a href="javascript:void(0);" onclick=DeleteRow(' + item.subjectId + ',' + item.creditHours + '); return false;>' +
+                            '<i class="fa fa-times-circle" style="font-size: x-large;color: red;"></i></a> </td> ';
+                        html += '</tr>';
+                        $('.tbody2').append(html);
+                        allhours += parseFloat(ch);
+                        button(allhours);
+                        $("#danger").text(allhours);
+
+                    }
+                });
+                color();
+
+
+            }
+        } else {
+            toastr.error('You skip the limit of hours', '', { timeOut: 5000 })
+        }
+
+
+    }
+    function DeleteRow(id, ch) {         
+        $('#tr2_' + id).remove();
+       
+        addIds.push(id)
+        //remove index from array(sublist)
+        var index = $.inArray(id, sublist);
+        sublist.splice(index, 1);
+         var newdate = [];
+                $.each(allsub, function (key, item) {
+                    for (var i = 0; i < addIds.length; i++) {
+                        if (addIds[i] == item.subjectId) {
+                            newdate.push(item)
+                        }
+                    }
+                });
+                $('#table1').dataTable({
+                    destroy: true,
+                    data: newdate,
+                    columns: [
+                        { 'data': 'subject1' },
+                        { 'data': 'ProfName' },
+                        { 'data': 'creditHours' },
+                        { 'data': 'day' },
+                        {
+                            'data': null,
+                            render: function (data, type, row) {
+                                return '<td id="time_' + data.subjectId + '">' + data.timeFrom.substring(0, 8) + ' - ' + data.timeTo.substring(0, 8) + '</td > ';
+                            }
+                        },
+                        {
+                            'data': null,
+                            render: function (data, type, row) {
+                                return '<a href="javascript:void(0);" onclick=SelectRow(' + data.subjectId + ',' + data.creditHours + '); return false;>' +
+                                    '<i class="fa fa-check-circle " style="font-size: x-large;color: green;"></i></a>';
+                            }
+                        },
+
+                    ],
+                    createdRow: function (row, data, dataIndex, cells) {
+                        $(row).addClass("tr_" + data.subjectId );
+                    },
+                })
+        $.each(allsub, function (key, item) {
+            debugger;
+            if (item.subjectId == id) {       
+                allhours -= parseFloat(ch);
+                if (allhours == 0) {
+                    $('#section').hide();
+                }
+                button(allhours);
+                $("#danger").text(allhours);
+            }
+        });
+        color();
+    }
+    function color() {
+        if (allhours >= 12 && allhours < 18) {
+            $('#danger').css("background-color", "yellow");
+        }
+        else if (allhours == 18) {
+            $('#danger').css("background-color", "green");
+        }
+        else if (allhours == 0) {
+            $('#danger').css("background-color", "lightgrey");
+        }
+        else {
+            $('#danger').css("background-color", "red");
+        }
+    }
+ 
+
+
+
+</script>
